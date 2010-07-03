@@ -1,0 +1,133 @@
+# README
+# Building of U-BOOT for AT91SAM9261 based board PM9261
+#
+# Ronetix
+# www.ronetix.at
+#
+#
+
+
+
+u-boot-1.1.5-ronetix is used for basic initialization of the PM9261 board
+and for loading and starting an Operating system or an user application.
+The loading can be done via the various FLASH devices or the Ethernet.
+
+u-boot supports the following devices on the PM9261 board:
+
+- NOR Flash
+- Dataflash
+- NAND flash
+- Ethernet
+- LCD
+- DS2401 - serial number chip for generating an unique MAC address
+
+How to build and install U-BOOT?
+
+1. Download and install the GNU toolchain:
+
+wget http://www.download.ronetix.com/linux/tools/ronetix-linux-arm-elf.tar.bz2
+su -
+cd /
+tar xvfj ronetix-linux-arm-elf.tar.bz2
+exit
+
+Setup the path:
+
+export PATH=/usr/cross/arm-elf/bin:$PATH
+
+This toolchain includes:
+  binutils-2.17.50.0.6
+  gcc-4.1.1
+  newlib-1.14.0
+  insight-6.5
+
+
+
+2. Download and install the U-BOOT
+
+wget http://www.download.ronetix.com/linux/bootloader/u-boot-1.1.5-ronetix.tar.bz2
+
+tar xvfj u-boot-1.1.5-ronetix.tar.bz2
+cd u-boot-1.1.5-ronetix
+
+
+3. Configuration
+
+The u-boot configuration file is include/configs/pm9261.h.
+The definitions are explained in the README file.
+
+Set the lines for the network interface:
+#define CONFIG_ETHADDR		DE:AD:BE:EF:01:01
+#define CONFIG_IPADDR		10.120.81.138
+#define CONFIG_NETMASK		255.255.255.0
+#define CONFIG_GATEWAYIP	10.120.81.1
+#define CONFIG_SERVERIP		10.120.81.129
+#define CONFIG_HOSTNAME		PM9261
+
+These parameters can be modified later and set to a environment variables.
+
+If you do not want LCD support, comment out:
+
+#define  CONFIG_LCD			1
+
+
+If you have a 8-bit NAND Flash, comment out:
+
+#define CONFIG_MTD_NAND_AT91_BUSWIDTH_16
+
+To determine what kind of NAND Flash chip do you have look at bottom 
+side of the CPU module for:
+   U5 - MT29F2G16  - 16-bit NAND Flash
+   U9 - MT29F2G08  -  8-bit NAND Flash
+
+
+
+4. Building
+	make pm9261_config
+	make
+
+5. Installation
+
+The file u-boot.bin must be programmed in the FLASH at address 0x10000000 (after remap).
+The environment of u-boot is at address 0x10030000.
+If you use PEEDI the command is:
+
+peedi> flash erase
+peedi> flash program u-boot.bin bin 0x10000000
+
+Next restart the board or start it from PEEDI CLI:
+
+peedi> go 0x10000000
+
+6. Boot log
+
+U-Boot 1.1.5 (Mar 16 2007 - 09:59:38)
+
+Ronetix PM9261 Board
+  Crystal frequency: 18432000
+  CPU frequency: 199065600
+  Master clock frequency: 99532800
+  USB clock frequency: 48054857
+
+DRAM:  64 MB
+Flash:  4 MB
+NAND:  256 MiB
+DataFlash:AT45DB161
+Nb pages:   4096
+Page Size:    528
+Size= 2162688 bytes
+Logical address: 0xC0000000
+Area 0: C0000000 to C020FFFF 
+
+In:    serial
+Out:   serial
+Err:   serial
+dm9000 i/o: 0x30000000, id: 0x90000a46 
+MAC: 02:40:96:21:26:45
+operating at 100M full duplex mode
+Hit any key to stop autoboot:  0 
+pm9261> 
+
+
+
+
