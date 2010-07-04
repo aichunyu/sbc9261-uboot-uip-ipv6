@@ -142,6 +142,7 @@ endif
 OBJCFLAGS += --gap-fill=0xff
 
 gccincdir := $(shell $(CC) -print-file-name=include)
+crosscmpincdir := /home/srini/source/uboot/toolchain/usr/crosstool/gcc-3.4.5-glibc-2.3.6/arm-linux/arm-linux/include
 
 CPPFLAGS := $(DBGFLAGS) $(OPTFLAGS) $(RELFLAGS)		\
 	-D__KERNEL__ -DTEXT_BASE=$(TEXT_BASE)		\
@@ -151,8 +152,13 @@ CPPFLAGS += -I$(OBJTREE)/include2 -I$(OBJTREE)/include
 endif
 
 CPPFLAGS += -I$(TOPDIR)/include
+ifeq ($(CONFIG_UIP_STACK_SUPPORT),y)
+CPPFLAGS += -fno-builtin -ffreestanding -nostdinc 	\
+	-isystem $(crosscmpincdir) -isystem $(gccincdir) -pipe $(PLATFORM_CPPFLAGS)
+else
 CPPFLAGS += -fno-builtin -ffreestanding -nostdinc 	\
 	-isystem $(gccincdir) -pipe $(PLATFORM_CPPFLAGS)
+endif
 
 ifdef BUILD_TAG
 CFLAGS := $(CPPFLAGS) -Wall -Wstrict-prototypes \

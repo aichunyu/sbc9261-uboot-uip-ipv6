@@ -510,6 +510,15 @@ typedef struct httpd_state uip_tcp_appstate_t
  \endcode
  */
 
+typedef struct dummy_state {
+ char dummy;
+} uip_tcp_appstate_t;
+
+void dummy_func(void) {
+}
+
+#define UIP_APPCALL dummy_func 
+
 /**
  * \var #define UIP_APPCALL
  *

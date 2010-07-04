@@ -109,6 +109,9 @@ int checkboard (void) {
 ulong i, diva, divb, mula, mulb, crystal, usbdiv;
 
 	printf ("\nEmbest sbc9261 Board\n");
+#ifdef CONFIG_UIP_STACK_SUPPORT
+	printf (" - uIP stack enabled\n");
+#endif
 	i = *AT91C_PMC_PLLAR;
 	mula = ((i >> 16) & 0x7ff) + 1;
 	diva = i & 0xff;
