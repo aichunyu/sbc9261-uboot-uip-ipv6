@@ -5,3 +5,8 @@ syntax: glob
 *.o
 *.cscope
 cscope*
+*.depend
+*.a
+*boot.*
+*.swp
+u-boot
