@@ -194,9 +194,6 @@ LIBS += lib_$(ARCH)/lib$(ARCH).a
 LIBS += fs/cramfs/libcramfs.a fs/fat/libfat.a fs/fdos/libfdos.a fs/jffs2/libjffs2.a \
 	fs/reiserfs/libreiserfs.a fs/ext2/libext2fs.a
 LIBS += net/libnet.a
-ifeq ($(CONFIG_UIP_STACK_SUPPORT),y)
-LIBS += net/uip-1.0/uip/libuip.a
-endif
 LIBS += disk/libdisk.a
 LIBS += rtc/librtc.a
 LIBS += dtt/libdtt.a
@@ -206,6 +203,9 @@ LIBS += drivers/nand_legacy/libnand_legacy.a
 LIBS += drivers/sk98lin/libsk98lin.a
 LIBS += post/libpost.a post/cpu/libcpu.a
 LIBS += common/libcommon.a
+ifeq ($(CONFIG_UIP_STACK_SUPPORT),y)
+LIBS += net/uip-1.0/uip/libuip.a
+endif
 LIBS += $(BOARDLIBS)
 
 LIBS := $(addprefix $(obj),$(LIBS))
@@ -1759,10 +1759,9 @@ sbc9261_config	:	unconfig
 
 sbc9261_config_uip	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm926ejs sbc9261 NULL at91sam9261
-#	@echo "CONFIG_UIP_STACK_SUPPORT = y" >> include/config.mk
 	@echo "CONFIG_UIP_STACK_SUPPORT = y" >> $(TOPDIR)/board/$(BOARDDIR)/config.mk 
-	@echo "#include <configs/sbc9261.h>"        >  include/configs/sbc9261_config_uip.h
-	@echo "#define CONFIG_UIP_STACK_SUPPORT 1"  >> include/configs/sbc9261_config_uip.h
+	@echo "#define CONFIG_UIP_STACK_SUPPORT 1"  >   include/configs/sbc9261_config_uip.h
+	@echo "#include <configs/sbc9261.h>"        >>  include/configs/sbc9261_config_uip.h
 	@echo "... with uip stack enabled"
 
 

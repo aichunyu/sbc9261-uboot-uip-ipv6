@@ -33,8 +33,10 @@
 #include <common.h>
 #include <asm/arch/AT91SAM9261.h>
 #include <asm/arch/pio.h>
-
 #include <net.h>
+#ifdef CONFIG_UIP_STACK_SUPPORT
+#include <uip.h>
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*
@@ -110,7 +112,9 @@ ulong i, diva, divb, mula, mulb, crystal, usbdiv;
 
 	printf ("\nEmbest sbc9261 Board\n");
 #ifdef CONFIG_UIP_STACK_SUPPORT
-	printf (" - uIP stack enabled\n");
+#ifdef UIP_CONF_IPV6
+	printf (" - uIP IPv6 stack enabled\n");
+#endif    
 #endif
 	i = *AT91C_PMC_PLLAR;
 	mula = ((i >> 16) & 0x7ff) + 1;

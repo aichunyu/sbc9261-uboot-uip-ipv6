@@ -28,13 +28,24 @@
  *
  * This file is part of the uIP TCP/IP stack
  *
- * $Id: clock-arch.h,v 1.2 2006/06/12 08:00:31 adam Exp $
+ * $Id: clock-arch.c,v 1.2 2006/06/12 08:00:31 adam Exp $
  */
 
-#ifndef __CLOCK_ARCH_H__
-#define __CLOCK_ARCH_H__
+/**
+ * \file
+ *         Implementation of architecture-specific clock functionality
+ * \author
+ *         Adam Dunkels <adam@sics.se>
+ */
 
-typedef int clock_time_t;
-#define CLOCK_CONF_SECOND 1000
+#include <common.h>
+#include "clock-arch.h"
+extern unsigned long long get_timer_raw (void );
 
-#endif /* __CLOCK_ARCH_H__ */
+/*---------------------------------------------------------------------------*/
+clock_time_t
+clock_time(void)
+{
+  return((clock_time_t)get_timer_raw());
+}
+/*---------------------------------------------------------------------------*/

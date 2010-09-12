@@ -24,12 +24,19 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
+/*
+ * Copyright (c) 2010
+ *  - IPv6 support added by Srinivasan Jayarajan 
+ *    <srinivasan.jayarajan at gmail.com>
+ *
+ */
 
 /* #define	DEBUG	*/
 
 #include <common.h>
 #include <watchdog.h>
 #include <command.h>
+#include <config.h>
 #ifdef CONFIG_MODEM_SUPPORT
 #include <malloc.h>		/* for free() prototype */
 #endif
@@ -37,7 +44,9 @@
 #ifdef CFG_HUSH_PARSER
 #include <hush.h>
 #endif
-
+#ifdef CONFIG_UIP_STACK_SUPPORT
+#include <uip_network.h>
+#endif
 #include <post.h>
 
 #ifdef CONFIG_SILENT_CONSOLE
@@ -444,6 +453,10 @@ void main_loop (void)
 	    video_banner();
 	}
 #endif
+
+#ifdef CONFIG_UIP_STACK_SUPPORT
+	uip_network_init();
+#endif     
 
 	/*
 	 * Main Loop for Monitor Command Processing
@@ -955,6 +968,9 @@ int readline (const char *const prompt)
 	int	plen = 0;			/* prompt length	*/
 	int	col;				/* output column cnt	*/
 	char	c;
+#ifdef CONFIG_UIP_STACK_SUPPORT
+	static uint64_t netwk_timeout = 0;
+#endif        
 
 	/* print prompt */
 	if (prompt) {
@@ -964,6 +980,19 @@ int readline (const char *const prompt)
 	col = plen;
 
 	for (;;) {
+#ifdef CONFIG_UIP_STACK_SUPPORT        
+		while (!tstc()) {
+			if (get_ticks() > netwk_timeout) {
+				//printf("starting network processing\n");
+				uip_network_loop();
+			} else {
+				continue;
+			}
+		}
+
+		netwk_timeout = endtick(CONFIG_UIP_NTWK_PROCESS_TIMEOUT);
+#endif        
+
 #ifdef CONFIG_BOOT_RETRY_TIME
 		while (!tstc()) {	/* while no incoming data */
 			if (retry_time >= 0 && get_ticks() > endtime)

@@ -154,6 +154,9 @@ char		BootFile[128];		/* Boot File name			*/
 IPaddr_t	NetPingIP;		/* the ip address to ping 		*/
 
 static void PingStart(void);
+#ifdef UIP_CONF_IPV6
+uip_ipaddr_t NetPingIPv6;
+#endif
 #endif
 
 #if (CONFIG_COMMANDS & CFG_CMD_CDP)
@@ -493,7 +496,9 @@ restart:
 		 *	Abort if ctrl-c was pressed.
 		 */
 		if (ctrlc()) {
+#ifndef CONFIG_UIP_STACK_SUPPORT
 			eth_halt();
+#endif            
 			puts ("\nAbort\n");
 			return (-1);
 		}
@@ -547,7 +552,9 @@ restart:
 				sprintf(buf, "%lX", (unsigned long)load_addr);
 				setenv("fileaddr", buf);
 			}
+#ifndef CONFIG_UIP_STACK_SUPPORT
 			eth_halt();
+#endif            
 			return NetBootFileXferSize;
 
 		case NETLOOP_FAIL:
@@ -580,7 +587,9 @@ void NetStartAgain (void)
 		once = (strcmp (nretry, "once") == 0);
 	}
 	if (noretry) {
+#ifndef CONFIG_UIP_STACK_SUPPORT
 		eth_halt ();
+#endif 
 		NetState = NETLOOP_FAIL;
 		return;
 	}
@@ -748,7 +757,9 @@ int PingSend(void)
 static void
 PingTimeout (void)
 {
+#ifndef CONFIG_UIP_STACK_SUPPORT    
 	eth_halt();
+#endif
 	NetState = NETLOOP_FAIL;	/* we did not get the reply */
 }
 

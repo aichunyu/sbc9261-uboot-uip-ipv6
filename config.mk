@@ -143,6 +143,7 @@ OBJCFLAGS += --gap-fill=0xff
 
 gccincdir := $(shell $(CC) -print-file-name=include)
 crosscmpincdir := /home/srini/source/uboot/toolchain/usr/crosstool/gcc-3.4.5-glibc-2.3.6/arm-linux/arm-linux/include
+uipincdir := $(TOPDIR)/net/uip-1.0/uip
 
 CPPFLAGS := $(DBGFLAGS) $(OPTFLAGS) $(RELFLAGS)		\
 	-D__KERNEL__ -DTEXT_BASE=$(TEXT_BASE)		\
@@ -154,7 +155,8 @@ endif
 CPPFLAGS += -I$(TOPDIR)/include
 ifeq ($(CONFIG_UIP_STACK_SUPPORT),y)
 CPPFLAGS += -fno-builtin -ffreestanding -nostdinc 	\
-	-isystem $(crosscmpincdir) -isystem $(gccincdir) -pipe $(PLATFORM_CPPFLAGS)
+	-isystem $(crosscmpincdir) -isystem $(gccincdir) \
+	-I$(uipincdir) -I$(TOPDIR)/net  -pipe $(PLATFORM_CPPFLAGS)
 else
 CPPFLAGS += -fno-builtin -ffreestanding -nostdinc 	\
 	-isystem $(gccincdir) -pipe $(PLATFORM_CPPFLAGS)

@@ -23,12 +23,19 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
+/*
+ * Copyright (c) 2010
+ *  - IPv6 support added by Srinivasan Jayarajan 
+ *    <srinivasan.jayarajan at gmail.com>
+ *
+ */
 
 #include <common.h>
 #include <command.h>
 #include <environment.h>
 #include <linux/stddef.h>
 #include <malloc.h>
+#include <uip.h> 
 
 #ifdef CONFIG_SHOW_BOOT_PROGRESS
 # include <status_led.h>
@@ -138,6 +145,21 @@ uchar default_environment[] = {
 #ifdef  CONFIG_EXTRA_ENV_SETTINGS
 	CONFIG_EXTRA_ENV_SETTINGS
 #endif
+#ifdef  UIP_CONF_IPV6
+#ifdef  CONFIG_IP6PREFIX_LEN    	
+	"ip6prefixlen="	MK_STR(CONFIG_IP6PREFIX_LEN)	"\0"	
+#endif
+#ifdef 	CONFIG_IP6ADDR
+	"ip6addr="	MK_STR(CONFIG_IP6ADDR)		"\0"
+#endif
+#ifdef 	CONFIG_GATEWAYIP6	
+	"gatewayip6="	MK_STR(CONFIG_GATEWAYIP6)	"\0"
+#endif
+#ifdef 	CONFIG_SERVERIP6	
+	"serverip6="	MK_STR(CONFIG_SERVERIP6)	"\0"
+#endif
+
+#endif	/* UIP_CONF_IPV6 */	
 	"\0"
 };
 

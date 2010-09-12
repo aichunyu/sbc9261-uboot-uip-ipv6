@@ -28,28 +28,14 @@
  *
  * This file is part of the uIP TCP/IP stack
  *
- * $Id: clock-arch.c,v 1.2 2006/06/12 08:00:31 adam Exp $
+ * $Id: clock-arch.h,v 1.2 2006/06/12 08:00:31 adam Exp $
  */
 
-/**
- * \file
- *         Implementation of architecture-specific clock functionality
- * \author
- *         Adam Dunkels <adam@sics.se>
- */
+#ifndef __CLOCK_ARCH_H__
+#define __CLOCK_ARCH_H__
+#include <common.h>
 
-#include "clock-arch.h"
-#include <sys/time.h>
+typedef unsigned long long clock_time_t;
+#define CLOCK_CONF_SECOND (AT91C_MASTER_CLOCK / 16) 
 
-/*---------------------------------------------------------------------------*/
-clock_time_t
-clock_time(void)
-{
-  struct timeval tv;
-  struct timezone tz;
-
-  gettimeofday(&tv, &tz);
-
-  return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
-/*---------------------------------------------------------------------------*/
+#endif /* __CLOCK_ARCH_H__ */

@@ -935,4 +935,176 @@ phy_write(int reg, u16 value)
 	DM9000_iow(DM9000_EPCR, 0x0);	/* Clear phyxcer write command */
 	DM9000_DBG("phy_write(reg:%d, value:%d)\n", reg, value);
 }
+
+
+
+/*
+  Hardware start transmission.
+  Send a packet to media from the upper layer.
+*/
+int
+net_tx(volatile void *packet, int length)
+{
+	char *data_ptr;
+	u32 tmplen, i;
+	int tmo;
+
+    if (length <= 0)
+        return -1;
+
+	DM9000_DBG("net_tx: length: %d\n", length);
+	for (i = 0; i < length; i++) {
+		if (i % 8 == 0)
+			DM9000_DBG("\nSend: 02x: ", i);
+		DM9000_DBG("%02x ", ((unsigned char *) packet)[i]);
+	} DM9000_DBG("\n");
+
+	/* Move data to DM9000 TX RAM */
+	data_ptr = (char *) packet;
+#ifdef CONFIG_DRIVER_DM9000A
+	/* Set TX length to DM9000 */
+	DM9000_iow(DM9000_TXPLL, length & 0xff);
+	DM9000_iow(DM9000_TXPLH, (length >> 8) & 0xff);
+#endif
+	DM9000_outb(DM9000_MWCMD, DM9000_IO);
+
+#ifdef CONFIG_DM9000_USE_8BIT
+	/* Byte mode */
+	for (i = 0; i < length; i++)
+		DM9000_outb((data_ptr[i] & 0xff), DM9000_DATA);
+
+#endif				/*  */
+#ifdef CONFIG_DM9000_USE_16BIT
+	tmplen = (length + 1) / 2;
+	for (i = 0; i < tmplen; i++)
+		DM9000_outw(((u16 *) data_ptr)[i], DM9000_DATA);
+
+#endif				/*  */
+#ifdef CONFIG_DM9000_USE_32BIT
+	tmplen = (length + 3) / 4;
+	for (i = 0; i < tmplen; i++)
+		DM9000_outl(((u32 *) data_ptr)[i], DM9000_DATA);
+
+#endif				/*  */
+
+#ifndef CONFIG_DRIVER_DM9000A
+	/* Set TX length to DM9000 */
+	DM9000_iow(DM9000_TXPLL, length & 0xff);
+	DM9000_iow(DM9000_TXPLH, (length >> 8) & 0xff);
+#endif
+	/* Issue TX polling command */
+	DM9000_iow(DM9000_TCR, TCR_TXREQ);	/* Cleared after TX complete */
+
+	/* wait for end of transmission */
+	tmo = get_timer(0) + 5 * CFG_HZ;
+	while (DM9000_ior(DM9000_TCR) & TCR_TXREQ) {
+		if (get_timer(0) >= tmo) {
+			printf ("transmission timeout\n");
+			break;
+		}
+	}
+#ifdef CONFIG_DRIVER_DM9000A
+	udelay (1000);
+#endif
+	DM9000_DBG("transmit done\n\n");
+	return 0;
+}
+
+/*
+  Received a packet and pass to upper layer
+*/
+int
+net_rx(void *packet)
+{
+	u8 rxbyte, *rdptr = (u8 *)packet;
+	u16 RxStatus, RxLen = 0;
+	u32 tmplen, i;
+#ifdef CONFIG_DM9000_USE_32BIT
+	u32 tmpdata;
+#endif
+
+	/* Check packet ready or not */
+	DM9000_ior(DM9000_MRCMDX);	/* Dummy read */
+	rxbyte = DM9000_inb(DM9000_DATA);	/* Got most updated data */
+#if CONFIG_DRIVER_DM9000A
+	if ((rxbyte & 1) == 0) {
+		DM9000_ior(DM9000_ISR);
+		return 0;
+	}
+#else
+	if (rxbyte == 0)
+		return 0;
+
+	/* Status check: this byte must be 0 or 1 */
+	if (rxbyte > 1) {
+		DM9000_iow(DM9000_RCR, 0x00);	/* Stop Device */
+		DM9000_iow(DM9000_ISR, 0x80);	/* Stop INT request */
+		DM9000_DBG("rx status check: %d\n", rxbyte);
+	}
+#endif
+	DM9000_DBG("receiving packet\n");
+
+	/* A packet ready now  & Get status/length */
+	DM9000_outb(DM9000_MRCMD, DM9000_IO);
+
+#ifdef CONFIG_DM9000_USE_8BIT
+	RxStatus = DM9000_inb(DM9000_DATA) + (DM9000_inb(DM9000_DATA) << 8);
+	RxLen = DM9000_inb(DM9000_DATA) + (DM9000_inb(DM9000_DATA) << 8);
+
+#endif				/*  */
+#ifdef CONFIG_DM9000_USE_16BIT
+	RxStatus = DM9000_inw(DM9000_DATA);
+	RxLen = DM9000_inw(DM9000_DATA);
+
+#endif				/*  */
+#ifdef CONFIG_DM9000_USE_32BIT
+	tmpdata = DM9000_inl(DM9000_DATA);
+	RxStatus = tmpdata;
+	RxLen = tmpdata >> 16;
+
+#endif				/*  */
+	DM9000_DBG("rx status: 0x%04x rx len: %d\n", RxStatus, RxLen);
+
+	/* Move data from DM9000 */
+	/* Read received packet from RX SRAM */
+#ifdef CONFIG_DM9000_USE_8BIT
+	for (i = 0; i < RxLen; i++)
+		rdptr[i] = DM9000_inb(DM9000_DATA);
+
+#endif				/*  */
+#ifdef CONFIG_DM9000_USE_16BIT
+	tmplen = (RxLen + 1) / 2;
+	for (i = 0; i < tmplen; i++)
+		((u16 *) rdptr)[i] = DM9000_inw(DM9000_DATA);
+
+#endif				/*  */
+#ifdef CONFIG_DM9000_USE_32BIT
+	tmplen = (RxLen + 3) / 4;
+	for (i = 0; i < tmplen; i++)
+		((u32 *) rdptr)[i] = DM9000_inl(DM9000_DATA);
+
+#endif				/*  */
+	if ((RxStatus & 0xbf00) || (RxLen < 0x40)
+	    || (RxLen > DM9000_PKT_MAX)) {
+		if (RxStatus & 0x100) {
+			printf("rx fifo error\n");
+		}
+		if (RxStatus & 0x200) {
+			printf("rx crc error\n");
+		}
+		if (RxStatus & 0x8000) {
+			printf("rx length error\n");
+		}
+		if (RxLen > DM9000_PKT_MAX) {
+			printf("rx length too big\n");
+			dm9000_reset();
+		}
+	} else {
+
+		/* Pass to upper layer */
+		DM9000_DBG("passing packet to upper layer\n");
+		return RxLen;
+	}
+	return 0;
+}
 #endif				/* CONFIG_DRIVER_DM9000 */

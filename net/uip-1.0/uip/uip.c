@@ -85,6 +85,7 @@
 
 #if UIP_CONF_IPV6
 #include "uip-neighbor.h"
+#include "uip_network.h"
 #endif /* UIP_CONF_IPV6 */
 
 #include <string.h>
@@ -110,13 +111,20 @@ const uip_ipaddr_t uip_netmask =
 uip_ipaddr_t uip_hostaddr, uip_draddr, uip_netmask;
 #endif /* UIP_FIXEDADDR */
 
+#if UIP_CONF_IPV6
+u8_t uip_prefix_len;
+
+/* Link-Local address */
+uip_ipaddr_t uip_lladdr;
+#endif 
+
 static const uip_ipaddr_t all_ones_addr =
 #if UIP_CONF_IPV6
   {0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff};
 #else /* UIP_CONF_IPV6 */
   {0xffff,0xffff};
 #endif /* UIP_CONF_IPV6 */
-static const uip_ipaddr_t all_zeroes_addr =
+const uip_ipaddr_t all_zeroes_addr =
 #if UIP_CONF_IPV6
   {0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000};
 #else /* UIP_CONF_IPV6 */
@@ -174,6 +182,10 @@ struct uip_udp_conn *uip_udp_conn;
 struct uip_udp_conn uip_udp_conns[UIP_UDP_CONNS];
 #endif /* UIP_UDP */
 
+#if UIP_STATISTICS == 1
+struct uip_stats uip_stat;
+#endif /* UIP_STATISTICS == 1 */
+
 static u16_t ipid;           /* Ths ipid variable is an increasing
 				number that is used for the IP ID
 				field. */
@@ -208,33 +220,11 @@ static u16_t tmp16;
 
 #define TCP_OPT_MSS_LEN 4   /* Length of TCP MSS option. */
 
-#define ICMP_ECHO_REPLY 0
-#define ICMP_ECHO       8
-
-#define ICMP6_ECHO_REPLY             129
-#define ICMP6_ECHO                   128
-#define ICMP6_NEIGHBOR_SOLICITATION  135
-#define ICMP6_NEIGHBOR_ADVERTISEMENT 136
-
-#define ICMP6_FLAG_S (1 << 6)
-
-#define ICMP6_OPTION_SOURCE_LINK_ADDRESS 1
-#define ICMP6_OPTION_TARGET_LINK_ADDRESS 2
-
-
 /* Macros. */
 #define BUF ((struct uip_tcpip_hdr *)&uip_buf[UIP_LLH_LEN])
 #define FBUF ((struct uip_tcpip_hdr *)&uip_reassbuf[0])
 #define ICMPBUF ((struct uip_icmpip_hdr *)&uip_buf[UIP_LLH_LEN])
 #define UDPBUF ((struct uip_udpip_hdr *)&uip_buf[UIP_LLH_LEN])
-
-
-#if UIP_STATISTICS == 1
-struct uip_stats uip_stat;
-#define UIP_STAT(s) s
-#else
-#define UIP_STAT(s)
-#endif /* UIP_STATISTICS == 1 */
 
 #if UIP_LOGGING == 1
 #include <stdio.h>
@@ -243,6 +233,14 @@ void uip_log(char *msg);
 #else
 #define UIP_LOG(m)
 #endif /* UIP_LOGGING == 1 */
+
+#if UIP_LOGGING == 1
+void
+uip_log(char *m)
+{
+    printf("uIP log message: %s\n", m);
+}
+#endif
 
 #if ! UIP_ARCH_ADD32
 void
@@ -668,6 +666,7 @@ uip_reass(void)
 }
 #endif /* UIP_REASSEMBLY */
 /*---------------------------------------------------------------------------*/
+//extern  void printf (const char *fmt, ...);
 static void
 uip_add_rcv_nxt(u16_t n)
 {
@@ -1030,8 +1029,8 @@ uip_process(u8_t flag)
     if(uip_ipaddr_cmp(ICMPBUF->icmp6data, uip_hostaddr)) {
 
       if(ICMPBUF->options[0] == ICMP6_OPTION_SOURCE_LINK_ADDRESS) {
-	/* Save the sender's address in our neighbor list. */
-	uip_neighbor_add(ICMPBUF->srcipaddr, &(ICMPBUF->options[2]));
+	    /* Save the sender's address in our neighbor list. */
+	    uip_neighbor_add(ICMPBUF->srcipaddr, (struct uip_neighbor_addr *)&(ICMPBUF->options[2]));
       }
       
       /* We should now send a neighbor advertisement back to where the
@@ -1052,6 +1051,13 @@ uip_process(u8_t flag)
       
     }
     goto drop;
+  } else if(ICMPBUF->type == ICMP6_NEIGHBOR_ADVERTISEMENT) {
+      if(ICMPBUF->options[0] == ICMP6_OPTION_TARGET_LINK_ADDRESS) {
+        /* Save the sender's address in our neighbor list. */
+        uip_neighbor_add(ICMPBUF->srcipaddr,
+                        (struct uip_neighbor_addr *)&(ICMPBUF->options[2]));
+      }
+    
   } else if(ICMPBUF->type == ICMP6_ECHO) {
     /* ICMP echo (i.e., ping) processing. This is simple, we only
        change the ICMP type from ECHO to ECHO_REPLY and update the
@@ -1066,6 +1072,11 @@ uip_process(u8_t flag)
     
     UIP_STAT(++uip_stat.icmp.sent);
     goto send;
+  } else if (ICMPBUF->type == ICMP6_ECHO_REPLY) {
+	  if ((ping6_status == PING6_REPLY_WAIT) &&
+		uip_ipaddr_cmp(ICMPBUF->srcipaddr, ping6_addr)) {
+		ping6_status = PING6_SUCCESS;
+	  }
   } else {
     DEBUG_PRINTF("Unknown icmp6 message type %d\n", ICMPBUF->type);
     UIP_STAT(++uip_stat.icmp.drop);
@@ -1112,7 +1123,8 @@ uip_process(u8_t flag)
     if(uip_udp_conn->lport != 0 &&
        UDPBUF->destport == uip_udp_conn->lport &&
        (uip_udp_conn->rport == 0 ||
-        UDPBUF->srcport == uip_udp_conn->rport) &&
+        UDPBUF->srcport != uip_udp_conn->rport ||
+	UDPBUF->srcport == uip_udp_conn->rport) &&
        (uip_ipaddr_cmp(uip_udp_conn->ripaddr, all_zeroes_addr) ||
 	uip_ipaddr_cmp(uip_udp_conn->ripaddr, all_ones_addr) ||
 	uip_ipaddr_cmp(BUF->srcipaddr, uip_udp_conn->ripaddr))) {

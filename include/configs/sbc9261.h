@@ -64,6 +64,7 @@
 //#define CONFIG_SPI		        1
 #define CFG_LONGHELP			1
 #define CONFIG_DISPLAY_BOARDINFO	1
+#define CFG_64BIT_VSPRINTF              1
 
 /* Network settings */
 #define CONFIG_IPADDR		10.1.1.20
@@ -74,11 +75,11 @@
 #define CONFIG_HOSTNAME		SBC9261
 
 #ifdef CONFIG_UIP_STACK_SUPPORT
-//#define UIP_CONF_UDP_CHECKSUMS   1
-//#define UIP_CONF_MAX_CONNECTIONS 1
-//#define UIP_CONF_MAX_LISTENPORTS 1
-//#define UIP_CONF_BUFFER_SIZE     1520
-#define UIP_CONF_UDP             1
+#define CONFIG_UIP_NTWK_PROCESS_TIMEOUT  2 
+#define CONFIG_IP6PREFIX_LEN    64
+#define CONFIG_SERVERIP6	2001:beef::10	
+#define CONFIG_GATEWAYIP6	2001:beef::100
+#define CONFIG_IP6ADDR		2001:beef::20	
 #endif /* CONFIG_UIP_STACK_SUPPORT */
 
 
@@ -111,7 +112,7 @@
 /* disable modem initialization stuff */
 #undef	CONFIG_MODEM_SUPPORT
 
-#define CONFIG_BOOTDELAY		3
+#define CONFIG_BOOTDELAY	        15	
 #define CONFIG_BOOTCOMMAND		"run flashboot"
 #define CONFIG_ROOTPATH			/home/nfs/rootfs
 #define CONFIG_AUTOBOOT_PROMPT		"autoboot in %d seconds\n"

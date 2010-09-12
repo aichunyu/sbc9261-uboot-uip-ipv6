@@ -9,49 +9,26 @@
 #include <net.h>
 #include "tftp.h"
 #include "bootp.h"
+#ifdef CONFIG_UIP_STACK_SUPPORT
+#include <uip.h>
+#endif
 
-#undef	ET_DEBUG
-
-#if (CONFIG_COMMANDS & CFG_CMD_NET)
-
-#define WELL_KNOWN_PORT	69		/* Well known TFTP port #		*/
-#define TIMEOUT		5		/* Seconds to timeout for a lost pkt	*/
 #ifndef	CONFIG_NET_RETRY_COUNT
 # define TIMEOUT_COUNT	10		/* # of timeouts before giving up  */
 #else
 # define TIMEOUT_COUNT  (CONFIG_NET_RETRY_COUNT * 2)
 #endif
-					/* (for checking the image size)	*/
-#define HASHES_PER_LINE	65		/* Number of "loading" hashes per line	*/
 
-/*
- *	TFTP operations.
- */
-#define TFTP_RRQ	1
-#define TFTP_WRQ	2
-#define TFTP_DATA	3
-#define TFTP_ACK	4
-#define TFTP_ERROR	5
-#define TFTP_OACK	6
-
-
+#if (CONFIG_COMMANDS & CFG_CMD_NET)
 static int	TftpServerPort;		/* The UDP port at their end		*/
 static int	TftpOurPort;		/* The UDP port at our end		*/
 static int	TftpTimeoutCount;
-static ulong	TftpBlock;		/* packet sequence number		*/
-static ulong	TftpLastBlock;		/* last packet sequence number received */
-static ulong	TftpBlockWrap;		/* count of sequence number wraparounds */
-static ulong	TftpBlockWrapOffset;	/* memory offset due to wrapping	*/
-static int	TftpState;
+ulong		TftpBlock;		/* packet sequence number		*/
+ulong		TftpLastBlock;		/* last packet sequence number received */
+ulong		TftpBlockWrap;		/* count of sequence number wraparounds */
+ulong		TftpBlockWrapOffset;	/* memory offset due to wrapping	*/
+int		TftpState;
 
-#define STATE_RRQ	1
-#define STATE_DATA	2
-#define STATE_TOO_LARGE	3
-#define STATE_BAD_MAGIC	4
-#define STATE_OACK	5
-
-#define TFTP_BLOCK_SIZE		512		    /* default TFTP block size	*/
-#define TFTP_SEQUENCE_SIZE	((ulong)(1<<16))    /* sequence number is 16 bit */
 
 #define DEFAULT_NAME_LEN	(8 + 4 + 1)
 static char default_filename[DEFAULT_NAME_LEN];
@@ -61,8 +38,12 @@ static char *tftp_filename;
 extern flash_info_t flash_info[];
 #endif
 
-static __inline__ void
-store_block (unsigned block, uchar * src, unsigned len)
+#ifndef UIP_CONF_IPV6
+extern volatile int tftp6_status;
+#endif
+
+__inline__ void
+tftp_store_block (unsigned block, uchar * src, unsigned len)
 {
 	ulong offset = block * TFTP_BLOCK_SIZE + TftpBlockWrapOffset;
 	ulong newsize = offset + len;
@@ -82,6 +63,9 @@ store_block (unsigned block, uchar * src, unsigned len)
 		if (rc) {
 			flash_perror (rc);
 			NetState = NETLOOP_FAIL;
+#ifndef UIP_CONF_IPV6
+			tftp6_status = TFTP6_FAIL;
+#endif			
 			return;
 		}
 	}
@@ -135,6 +119,7 @@ TftpSend (void)
 		len = pkt - xp;
 		break;
 
+break;
 	case STATE_DATA:
 	case STATE_OACK:
 		xp = pkt;
@@ -268,7 +253,7 @@ TftpHandler (uchar * pkt, unsigned dest, unsigned src, unsigned len)
 		TftpLastBlock = TftpBlock;
 		NetSetTimeout (TIMEOUT * CFG_HZ, TftpTimeout);
 
-		store_block (TftpBlock - 1, pkt + 2, len);
+		tftp_store_block (TftpBlock - 1, pkt + 2, len);
 
 		/*
 		 *	Acknoledge the block just received, which will prompt

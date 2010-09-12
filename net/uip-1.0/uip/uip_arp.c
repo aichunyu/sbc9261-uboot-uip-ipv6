@@ -58,6 +58,8 @@
  *
  */
 
+#include <common.h>
+#include <net.h>
 
 #include "uip_arp.h"
 

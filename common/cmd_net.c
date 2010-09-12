@@ -22,11 +22,25 @@
  */
 
 /*
+ * Copyright (c) 2010
+ *  - IPv6 support added by Srinivasan Jayarajan 
+ *    <srinivasan.jayarajan at gmail.com>
+ *
+ */
+  
+
+/*
  * Boot support
  */
 #include <common.h>
 #include <command.h>
 #include <net.h>
+#ifdef CONFIG_UIP_STACK_SUPPORT
+#include <uipopt.h>
+#include <uip_util.h>
+#include <uip.h>
+#include <uip_network.h>
+#endif
 
 #if (CONFIG_COMMANDS & CFG_CMD_NET)
 
@@ -52,9 +66,13 @@ int do_tftpb (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
+#ifdef UIP_CONF_IPV6            
+	tftpboot,	4,	1,	do_tftpb,
+#else
 	tftpboot,	3,	1,	do_tftpb,
+#endif	
 	"tftpboot- boot image via network using TFTP protocol\n",
-	"[loadAddress] [bootfilename]\n"
+	"[-6] [loadAddress] [bootfilename]\n"
 );
 
 int do_rarpb (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
@@ -163,32 +181,64 @@ netboot_common (proto_t proto, cmd_tbl_t *cmdtp, int argc, char *argv[])
 		load_addr = simple_strtoul(s, NULL, 16);
 	}
 
-	switch (argc) {
-	case 1:
-		break;
+	if ((argc > 1) && (strcmp(argv[1], "-6") == 0)) {
+		switch (argc) {
+		case 2:
+			break;
 
-	case 2:	/* only one arg - accept two forms:
-		 * just load address, or just boot file name.
-		 * The latter form must be written "filename" here.
-		 */
-		if (argv[1][0] == '"') {	/* just boot filename */
-			copy_filename (BootFile, argv[1], sizeof(BootFile));
-		} else {			/* load address	*/
-			load_addr = simple_strtoul(argv[1], NULL, 16);
+		case 3:	/* only one arg - accept two forms:
+			 * just load address, or just boot file name.
+			 * The latter form must be written "filename" here.
+			 */
+			if (argv[2][0] == '"') {	/* just boot filename */
+				copy_filename (BootFile, argv[2], sizeof(BootFile));
+			} else {			/* load address	*/
+				load_addr = simple_strtoul(argv[2], NULL, 16);
+			}
+			break;
+
+		case 4:	load_addr = simple_strtoul(argv[2], NULL, 16);
+			copy_filename (BootFile, argv[3], sizeof(BootFile));
+
+			break;
+
+		default: printf ("Usage:\n%s\n", cmdtp->usage);
+			return 1;
 		}
-		break;
+	} else {
+		switch (argc) {
+		case 1:
+			break;
 
-	case 3:	load_addr = simple_strtoul(argv[1], NULL, 16);
-		copy_filename (BootFile, argv[2], sizeof(BootFile));
+		case 2:	/* only one arg - accept two forms:
+			 * just load address, or just boot file name.
+			 * The latter form must be written "filename" here.
+			 */
+			if (argv[1][0] == '"') {	/* just boot filename */
+				copy_filename (BootFile, argv[1], sizeof(BootFile));
+			} else {			/* load address	*/
+				load_addr = simple_strtoul(argv[1], NULL, 16);
+			}
+			break;
 
-		break;
+		case 3:	load_addr = simple_strtoul(argv[1], NULL, 16);
+			copy_filename (BootFile, argv[2], sizeof(BootFile));
 
-	default: printf ("Usage:\n%s\n", cmdtp->usage);
-		return 1;
+			break;
+
+		default: printf ("Usage:\n%s\n", cmdtp->usage);
+			return 1;
+		}
 	}
-
-	if ((size = NetLoop(proto)) < 0)
-		return 1;
+	
+	if ((argc > 1) && (strcmp(argv[1], "-6") == 0) && (proto == TFTP)) {
+		if (!tftp6_get(BootFile))
+			return 1;
+		size = NetBootFileXferSize;
+	} else {
+		if ((size = NetLoop(proto)) < 0)
+			return 1;
+	}
 
 	/* NetLoop ok, update environment */
 	netboot_update_env();
@@ -225,27 +275,51 @@ int do_ping (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	if (argc < 2)
 		return -1;
+#ifdef UIP_CONF_IPV6
+	if (strcmp(argv[1], "-6") == 0) {
+		uip_ipaddr_t DestIpv6;
 
+		if (argc < 3)
+			return -1;
+
+		if (!inet_pton6(argv[2], (unsigned char*)&DestIpv6)) {
+			printf("Invalid host address \n");
+			return -1;
+		}
+		if (!ping6(&DestIpv6)) {
+			printf("ping failed; host %s is not alive\n", argv[2]);
+			return 1;
+		} 
+		printf("host %s is alive\n", argv[2]);
+		return 0;
+
+	} else {
+#endif    
 	NetPingIP = string_to_ip(argv[1]);
 	if (NetPingIP == 0) {
 		printf ("Usage:\n%s\n", cmdtp->usage);
 		return -1;
 	}
-
 	if (NetLoop(PING) < 0) {
 		printf("ping failed; host %s is not alive\n", argv[1]);
 		return 1;
 	}
-
 	printf("host %s is alive\n", argv[1]);
 
 	return 0;
+#ifdef UIP_CONF_IPV6
+	} 
+#endif    
 }
 
 U_BOOT_CMD(
+#ifdef UIP_CONF_IPV6            
+	ping,	3,	1,	do_ping,
+#else    
 	ping,	2,	1,	do_ping,
-	"ping\t- send ICMP ECHO_REQUEST to network host\n",
-	"pingAddress\n"
+#endif    
+	"ping\t- send ICMP ECHO_REQUEST to IPv4/IPv6 network host\n",
+	"[-6] pingAddress\n"
 );
 #endif	/* CFG_CMD_PING */
 

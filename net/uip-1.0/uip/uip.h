@@ -1534,6 +1534,19 @@ extern const uip_ipaddr_t uip_hostaddr, uip_netmask, uip_draddr;
 extern uip_ipaddr_t uip_hostaddr, uip_netmask, uip_draddr;
 #endif /* UIP_FIXEDADDR */
 
+/*
+ * Representation of a unspecified IP address.
+ */
+extern const uip_ipaddr_t all_zeroes_addr;
+
+/*
+ * IPv6 host address prefix length
+ */
+#if UIP_CONF_IPV6
+extern u8_t uip_prefix_len;
+extern uip_ipaddr_t uip_lladdr;
+#endif
+
 
 
 /**
@@ -1594,6 +1607,33 @@ u16_t uip_tcpchksum(void);
  */
 u16_t uip_udpchksum(void);
 
+#define uip_setprefixlen(len)  (uip_prefix_len = (len))
+
+#define uip_getprefixlen()  (uip_prefix_len)
+
+#define ICMP_ECHO_REPLY 0
+#define ICMP_ECHO       8
+
+#define ICMP6_ECHO_REPLY             129
+#define ICMP6_ECHO                   128
+#define ICMP6_NEIGHBOR_SOLICITATION  135
+#define ICMP6_NEIGHBOR_ADVERTISEMENT 136
+
+#define ICMP6_FLAG_S (1 << 6)
+
+#define ICMP6_OPTION_SOURCE_LINK_ADDRESS 1
+#define ICMP6_OPTION_TARGET_LINK_ADDRESS 2
+
+#ifdef UIP_CONF_IPV6
+extern u16_t uip_icmp6chksum(void);
+#endif
+
+#if UIP_STATISTICS == 1
+extern struct uip_stats uip_stat;
+#define UIP_STAT(s) s
+#else
+#define UIP_STAT(s)
+#endif /* UIP_STATISTICS == 1 */
 
 #endif /* __UIP_H__ */
 

@@ -23,11 +23,13 @@
 
 include $(TOPDIR)/config.mk
 
-CFLAGS	+= -I$(crosscmpincdir) -I$(TOPDIR)/net/uip-1.0/unix
+CFLAGS	+= -fpack-struct -Os
 
 LIB	= $(obj)libuip.a
 
-COBJS	= uip.o uip_arp.o timer.o uip-fw.o uip-neighbor.o
+COBJS	= uip.o timer.o uip-neighbor.o \
+	clock-arch.o uip_network.o uip_nd.o uip_util.o uip_prefix.o uip_tftp6.o
+ 
 
 SRCS	:= $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))
